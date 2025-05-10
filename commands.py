@@ -4,10 +4,10 @@ from uuid import uuid4
 
 from events import OrderPlaced, FundsDebited, OrderCancelled, FundsCredited
 from event_store import EventStore
-from models import OrderBook
+from models import OrderBook, Account
 
 
-def place_order(event_store: EventStore, user_id: str, side: Literal["buy", "sell"], quantity: int, price: float):
+def place_order(event_store: EventStore, account: Account, user_id: str, side: Literal["buy", "sell"], quantity: int, price: float):
     assert quantity > 0
     assert price > 0
 
@@ -16,6 +16,10 @@ def place_order(event_store: EventStore, user_id: str, side: Literal["buy", "sel
 
     if side == "buy":
         total_cost = quantity * price
+        current_balance = account.get_balance(user_id)
+        if current_balance < total_cost:
+            raise ValueError(f"Insufficient funds: needs ${total_cost:.2f}, has ${current_balance:.2f}")
+
         event_store.append(FundsDebited(
             timestamp=timestamp,
             user_id=user_id,
@@ -42,11 +46,10 @@ def cancel_order(event_store: EventStore, order_book: OrderBook, user_id: str, o
     if order.user_id != user_id:
         raise ValueError("User is not the owner of this order")
 
-    timestamp = datetime.utcnow()
+    timestamp = datetime.now()
     event_store.append(OrderCancelled(
         timestamp=timestamp,
-        order_id=order_id,
-        user_id=user_id
+        order_id=order_id
     ))
 
     if order.side == "buy":
