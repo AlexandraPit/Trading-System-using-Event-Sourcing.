@@ -1,14 +1,14 @@
+from collections import defaultdict
 from typing import Dict, List
 from events import (
     OrderPlaced, OrderCancelled, TradeExecuted,
     Event, FundsDebited, FundsCredited
 )
 
-
-
 class OrderBook:
     def __init__(self):
         self.active_orders: Dict[str, OrderPlaced] = {}
+        self.filled_quantities: Dict[str, int] = defaultdict(int)
 
     def apply(self, event: Event):
         if isinstance(event, OrderPlaced):
@@ -18,19 +18,15 @@ class OrderBook:
             self.active_orders.pop(event.order_id, None)
 
         elif isinstance(event, TradeExecuted):
-            if event.buy_order_id in self.active_orders:
-                self.active_orders[event.buy_order_id].quantity -= event.quantity
-                if self.active_orders[event.buy_order_id].quantity <= 0:
-                    del self.active_orders[event.buy_order_id]
 
+            if event.buy_order_id in self.active_orders:
+                self.active_orders.pop(event.buy_order_id)
             if event.sell_order_id in self.active_orders:
-                self.active_orders[event.sell_order_id].quantity -= event.quantity
-                if self.active_orders[event.sell_order_id].quantity <= 0:
-                    del self.active_orders[event.sell_order_id]
+                self.active_orders.pop(event.sell_order_id)
 
     def replay(self, events: List[Event]):
-        self.orders = {}
-        self.cancelled_orders = set()
+        self.active_orders = {}
+        self.filled_quantities = defaultdict(int)
         for event in events:
             self.apply(event)
 

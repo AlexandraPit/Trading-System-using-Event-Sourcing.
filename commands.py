@@ -4,6 +4,7 @@ from uuid import uuid4
 
 from events import OrderPlaced, FundsDebited, OrderCancelled, FundsCredited
 from event_store import EventStore
+from matching import match_orders
 from models import OrderBook, Account
 
 
@@ -34,8 +35,12 @@ def place_order(event_store: EventStore, account: Account, user_id: str, side: L
         quantity=quantity,
         price=price
     ))
+    order_book = OrderBook()
+    account.replay(event_store.get_all_events())
+    order_book.replay(event_store.get_all_events())
 
-    print(f"Placed order {order_id}")
+    match_orders(event_store, order_book, account)
+
     return order_id
 
 
